@@ -4,8 +4,8 @@ from mypkgs.reader.ncreader import NCreader
 
 def read2file(pressurefile, singlefile, varlist):
     """
-    pressurefile: ERA5 files(filename or path) with pressure levels data
-    singlefile: ERA5 files(filename or path) with single levels data
+    pressurefile: ERA5 files(filename or path) with pressure levels data\n
+    singlefile: ERA5 files(filename or path) with single levels data\n
     varlist: variables to read (for pressurefile)
     """
     NCR = NCreader(pressurefile)
@@ -19,10 +19,19 @@ def read2file(pressurefile, singlefile, varlist):
     db.merge(db2)
     p_4d = db["pressure_level"].data * 100 # Pa to hPa
     p_4d = broadcast_to_any(p_4d, db["u"][...].shape, n=1)
-    mslp_4d = np.broadcast_to(db["sp"].data, (db["pressure_level"].data.shape[0], *db["msl"].data.shape))
-    mslp_4d = np.transpose(mslp_4d, axes=(1,0,2,3))
-    mask = mslp_4d < p_4d
+    
+    sp_4d = np.broadcast_to(db["sp"].data, (db["pressure_level"].data.shape[0], *db["sp"].data.shape))
+    sp_4d = np.transpose(sp_4d, axes=(1,0,2,3))
+    mask = sp_4d < p_4d
     for key, variable in db.field.items():
         if len(variable.data.shape) == 4:
             db.field[key].data[mask] = np.nan
+    db.add_field("p", p_4d, attr={"unit:":"Pa"})
     return db
+
+def find_plevel(databox, p):
+        datap = databox["pressure_level"].data
+        level = np.argmin(np.abs(datap - p))
+        if np.abs(datap[level] - p) > 1:
+             print("p not match")
+        return level
